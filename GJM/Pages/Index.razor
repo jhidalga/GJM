@@ -1,10 +1,50 @@
 ﻿@page "/"
+@using GJM.Data;
+@using Microsoft.EntityFrameworkCore;
+@inject IDbContextFactory<ApplicationDbContext> dbContextFactory
 
 <PageTitle>Index</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Dados y Mepples!</h1>
+@if(posts.Any())
+{
+    <CardDeck>
+        <Row>
+            @foreach(var post in posts)
+            {
+                <Column ColumnSize="ColumnSize.Is4.IsAuto">
+                    <Card>
+                        <CardImage Source="https://blazorise.com/img/gallery/2.jpg" Alt="Card image cap 3"></CardImage>
+                        <CardBody>
+                            <CardTitle Size="5">@post.Tittle</CardTitle>
+                            <CardText>
+                                @post.Content
+                            </CardText>
+                            <Button Color="Color.Primary">Abrir Entrada</Button>
+                        </CardBody>
+                    </Card>
+                </Column>
+            }
+        </Row>
+    </CardDeck>
+}
+else
+{
+  <p>Cargando...</p>   
+}
 
-Welcome to your new app.
 
-<Button Color="Color.Primary">Click me</Button>
+@code {
+    IList<Post> posts = new List<Post>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        using (var dbContext = dbContextFactory.CreateDbContext())
+        {
+            posts = await dbContext.Posts.ToListAsync();
+        }
+        StateHasChanged();
+    }
+
+}
 
