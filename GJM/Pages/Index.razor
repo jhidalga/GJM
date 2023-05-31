@@ -1,12 +1,14 @@
 ﻿@page "/"
 @using GJM.Data;
+@using Markdig;
 @using Microsoft.EntityFrameworkCore;
+@using Helpers;
 @inject IDbContextFactory<ApplicationDbContext> dbContextFactory
 
 <PageTitle>Index</PageTitle>
 
 <h1>Dados y Mepples!</h1>
-@if(posts.Any())
+@if(posts.Any() && markdownPipeline != null)
 {
     <CardDeck>
         <Row>
@@ -18,7 +20,7 @@
                         <CardBody>
                             <CardTitle Size="5">@post.Tittle</CardTitle>
                             <CardText>
-                                @post.Content
+                                @((MarkupString)Markdown.ToHtml(post.Content, markdownPipeline))
                             </CardText>
                             <Button Color="Color.Primary">Abrir Entrada</Button>
                         </CardBody>
@@ -36,9 +38,15 @@ else
 
 @code {
     IList<Post> posts = new List<Post>();
+    MarkdownPipeline? markdownPipeline;
 
     protected async override Task OnInitializedAsync()
     {
+        markdownPipeline = new MarkdownPipelineBuilder()
+                                .UseAdvancedExtensions()
+                                .UseCustomMarkdownExtension()
+                                .Build();
+
         using (var dbContext = dbContextFactory.CreateDbContext())
         {
             posts = await dbContext.Posts.ToListAsync();
