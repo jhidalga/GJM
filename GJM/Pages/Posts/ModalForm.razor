@@ -1,0 +1,125 @@
+﻿@using GJM.Data;
+@using GJM.Services;
+@using Microsoft.EntityFrameworkCore;
+@inject IDbContextFactory<ApplicationDbContext> dbContextFactory
+
+<ModalHeader>
+    <ModalTitle>@ModalTitle</ModalTitle>
+    <Button Color="Color.Secondary" Clicked="@HideModal">X</Button>
+</ModalHeader>
+<ModalBody>
+    <Field>
+        <FieldLabel>Title</FieldLabel>
+        <TextEdit @bind-Text="@newPostTitle" Placeholder="Enter name..." />
+    </Field>
+    <Field>
+        <FieldLabel>Content</FieldLabel>
+        <Markdown Value="@markdownValue" ValueChanged="@OnMarkdownValueChanged" />
+    </Field>
+</ModalBody>
+<ModalFooter>
+    <Button Color="Color.Secondary" Clicked="@HideModal">Close</Button>
+    <Button Color="Color.Primary" Clicked="@(async ()=> await SaveOrEditPost())">Save Changes</Button>
+</ModalFooter>
+
+@code {
+
+    public string newPostTitle { get; set; } = string.Empty;
+    public string markdownValue { get; set; } = string.Empty;
+    [Parameter] public string ModalTitle { get; set; } = string.Empty;
+    [Parameter] public int IdPost { get; set; } = 0;
+
+    [Inject] public IModalService ModalService { get; set; }
+    [Inject] public EventService EventService { get; set; }
+
+    private async Task HideModal()
+    {
+        markdownValue = string.Empty;
+        newPostTitle = string.Empty;
+        IdPost = 0;
+        await ModalService.Hide();
+    }
+
+    private Task OnMarkdownValueChanged(string value)
+    {
+        markdownValue = value;
+
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveOrEditPost()
+    {
+        if (string.IsNullOrWhiteSpace(newPostTitle) || string.IsNullOrWhiteSpace(markdownValue))
+        {
+            await ShowModal("Error", "Debes completar todos los campos");
+            return;
+        }
+
+        using (var dbContext = dbContextFactory.CreateDbContext())
+        {
+            Post? post = null;
+
+            if (IdPost > 0)
+            {
+                post = await dbContext.Posts.FirstOrDefaultAsync(p => p.Id == IdPost);
+                if (post == null)
+                {
+                    await ShowModal("Error", "No se encontró el post que se intenta editar");
+                    return;
+                }
+
+                post.Tittle = newPostTitle;
+                post.Content = markdownValue;
+                dbContext.Posts.Update(post);
+            }
+            else
+            {
+                post = new Post()
+                    {
+                        Tittle = newPostTitle,
+                        Content = markdownValue,
+                        RegistrationDate = DateTime.Now
+                    };
+                await dbContext.Posts.AddAsync(post);
+            }
+
+            int result = await dbContext.SaveChangesAsync();
+            if (result > 0)
+            {
+                markdownValue = string.Empty;
+                newPostTitle = string.Empty;
+                EventService.PostUpdated();
+                await HideModal();
+            }
+            else
+            {
+                await ShowModal("Error", "Se produjo un error al guardar el post, si persiste contacte con el administrador");
+            }
+        }
+    }
+
+    private Task ShowModal(string title, string message)
+    {
+        return ModalService.Show<GenericModal>(parameters =>
+        {
+            parameters.Add(x => x.ModalTitle, title);
+            parameters.Add(x => x.ModalBody, message);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false });
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        if (IdPost > 0)
+        {
+            using (var dbContext = dbContextFactory.CreateDbContext())
+            {
+                Post? editPost = await dbContext.Posts.AsNoTracking().FirstOrDefaultAsync(p => p.Id == IdPost);
+                newPostTitle = editPost?.Tittle ?? string.Empty;
+                markdownValue = editPost?.Content ?? string.Empty;
+            }
+        }
+    }
+
+
+}

@@ -1,17 +1,25 @@
 ﻿@page "/"
 @using GJM.Data;
+@using GJM.Pages.Posts;
+@using GJM.Services;
 @using Markdig;
 @using Microsoft.EntityFrameworkCore;
 @using Helpers;
+@using System.Text.RegularExpressions;
 @inject IDbContextFactory<ApplicationDbContext> dbContextFactory
 
 <PageTitle>Index</PageTitle>
 
 <h1>Dados y Mepples!</h1>
 
+<AuthorizeView Roles="admin">
+    <Authorized>
+        <Button Color="Color.Primary" Clicked="@(()=>ShowModalNewPost())">Crea una nueva entrada</Button>
+    </Authorized>
+</AuthorizeView>
+
 @if(posts.Any() && markdownPipeline != null)
 {
-
     <Pagination>
         <PaginationItem Disabled="@IsPageNavigationDisabled(PREVIOUS)" @onclick="Previous">
             <PaginationLink>
@@ -41,13 +49,24 @@
             {
                 <Column ColumnSize="ColumnSize.Is4.IsAuto">
                     <Card>
-                        <CardImage Source="https://blazorise.com/img/gallery/2.jpg" Alt="Card image cap 3"></CardImage>
+                        @{
+                            string url = GetHeaderUrl(post);
+                         }
+                        <CardImage Source="@url" Alt="@post.Tittle"></CardImage>
                         <CardBody>
                             <CardTitle Size="5">@post.Tittle</CardTitle>
                             <CardText>
-                                @((MarkupString)Markdown.ToHtml(post.Content, markdownPipeline))
+                                @((MarkupString)Markdig.Markdown.ToHtml(ProcessPostContent(post.Content), markdownPipeline))
                             </CardText>
-                            <Button Color="Color.Primary">Abrir Entrada</Button>
+                            <div class="d-flex align-items-center justify-content-start">
+                                <Button Color="Color.Primary" Clicked="@(()=> ShowDetail(post))" class="flex-fill mr-2">Abrir</Button>
+                                <AuthorizeView Roles="admin">
+                                    <Authorized>
+                                        <Button Color="Color.Secondary" Clicked="@(()=> ShowModalNewPost(post.Id))" class="flex-fill mr-2">Editar</Button>
+                                        <Button Color="Color.Danger" Clicked="@(()=> ShowConfirmDelete(post))" class="flex-fill">Borrar</Button>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </div>
                         </CardBody>
                     </Card>
                 </Column>
@@ -83,6 +102,7 @@ else
   <p>Cargando...</p>   
 }
 
+@implements IDisposable
 
 @code {
     IList<Post> posts = new List<Post>();
@@ -92,6 +112,10 @@ else
     private const string NEXT = "next";
     private string currentPage = "1";
     private int pageItems = 5;
+    private int idPostDelete = 0;
+
+    [Inject] public IModalService ModalService { get; set; }
+    [Inject] public EventService EventService { get; set; }
 
     private bool IsActive(string page) => currentPage == page;
 
@@ -139,10 +163,78 @@ else
             posts = await dbContext.Posts
                             .Skip((int.Parse(currentPage) - 1) * pageItems)
                             .Take(6)
+                            .OrderByDescending(p => p.RegistrationDate)
                             .ToListAsync();
         }
         StateHasChanged();
 
+    }
+
+    private Task ShowModalNewPost(int idPost = 0)
+    {
+        string modalTitle = idPost > 0 ? "Edit Post" : "New Post";
+        return ModalService.Show<ModalForm>(parameters =>
+        {
+            parameters.Add(x => x.ModalTitle, modalTitle);
+            parameters.Add(x => x.IdPost, idPost);
+
+        },
+        new ModalInstanceOptions() { UseModalStructure = false, Size = ModalSize.Fullscreen });   
+
+    }
+
+    private Task ShowModal(string title, string message)
+    {
+        return ModalService.Show<GenericModal>(parameters =>
+        {
+            parameters.Add(x => x.ModalTitle, title);
+            parameters.Add(x => x.ModalBody, message);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false });
+    }
+
+    private Task ShowDetail(Post detailPost)
+    {
+        return ModalService.Show<DetailModal>(parameters =>
+        {
+            parameters.Add(x => x.ModalTitle, detailPost.Tittle);
+            parameters.Add(x => x.ModalBody, detailPost.Content);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false, Size = ModalSize.Fullscreen });
+    }
+
+    private Task ShowConfirmDelete(Post detailPost)
+    {
+        idPostDelete = detailPost.Id;
+        return ModalService.Show<ModalDeleteConfirm>(parameters =>
+        {
+        },
+        new ModalInstanceOptions() { UseModalStructure = false, Size = ModalSize.Small });
+    }
+
+    private string GetHeaderUrl(Post post)
+    {
+        return string.IsNullOrWhiteSpace(post.HeadImage) ? "https://blazorise.com/img/gallery/2.jpg" : post.HeadImage;
+    }
+
+    private string ProcessPostContent(string content)
+    {
+        const int maxContentLength = 250;
+        var contentToProcess = content;
+
+        // Truncate if content is too long
+        if (contentToProcess.Length > maxContentLength)
+        {
+            contentToProcess = contentToProcess.Substring(0, maxContentLength) + "...";
+        }
+
+        // Regular expression to find Markdown image syntax ![alt text](url)
+        var regex = new Regex(@"!\[.*?\]\((.*?)\)");
+
+        // Replace the image syntax with the URL of the image
+        contentToProcess = regex.Replace(contentToProcess, "$1");
+
+        return contentToProcess;
     }
 
     protected async override Task OnInitializedAsync()
@@ -162,6 +254,51 @@ else
         }
         await LoadPosts();
         StateHasChanged();
+    }
+
+    protected override void OnInitialized()
+    {
+        EventService.OnPostUpdated += UpdatePosts;
+        EventService.OnPostDeleted += DeletePost;
+    }
+
+    private async void UpdatePosts()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadPosts();
+        });
+    }
+
+    private async void DeletePost()
+    {
+        await InvokeAsync(async () =>
+        {
+            using (var dbContext = dbContextFactory.CreateDbContext())
+            {
+                Post? postDelete = await dbContext.Posts.FirstOrDefaultAsync(p => p.Id == idPostDelete);
+                if (postDelete != null)
+                {
+                    dbContext.Posts.Remove(postDelete);
+                    int result = await dbContext.SaveChangesAsync();
+                    if (result > 0)
+                    {
+                        await LoadPosts();
+                    }
+                    else
+                    {
+                        await ShowModal("Error", "Se produjo un error al borrar el post, si persiste contacte con el administrador");
+                    }
+                    idPostDelete = 0;
+                }
+            }
+        });
+    }
+
+    public void Dispose()
+    {
+        EventService.OnPostUpdated -= UpdatePosts;
+        EventService.OnPostUpdated -= DeletePost;
     }
 
 }

@@ -3,6 +3,7 @@ using Blazorise.Bootstrap;
 using Blazorise.Icons.FontAwesome;
 using GJM.Areas.Identity;
 using GJM.Data;
+using GJM.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
@@ -36,9 +37,12 @@ builder.Services
     .AddBlazorise(options =>
     {
         options.Immediate = true;
+        options.LicenseKey = "CjxRA3F4NAk9WwNwejE1BlEAc3o1DjxSAXF+Nwo6bjoNJ2ZdYhBVCCo/CjhQPUsNalV8Al44B2ECAWllMit3cWhZPUsqM1M8GwZ1eUtueyhEcCR/QmIlfjsndFl6W3p4CEh/NABiJDZccX0uXzQCUW52J1MxIm13WBFIDj1RbiM1UhYPVQ9pWgkVAmdTeRdzOSt3XHQ7BygUXwpmC2hwYUhJRCpJDH9xc04FZwkhaUJkFn0XGF1WbzZTIHxPWTQOAjthRFE4NwgXCDZdfhkIDSluTUotUxQsYA50LXctFk1uWCJDcSc8CkI7YyMlf08x";
     })
     .AddBootstrapProviders()
     .AddFontAwesomeIcons();
+builder.Services.AddScoped<ModalService>();
+builder.Services.AddSingleton<EventService>();
 builder.Services.AddSingleton<WeatherForecastService>();
 
 var app = builder.Build();
