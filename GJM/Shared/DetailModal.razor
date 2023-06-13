@@ -1,0 +1,34 @@
+﻿@using Markdig;
+@using Helpers;
+
+<ModalHeader>
+    <ModalTitle>@ModalTitle</ModalTitle>
+</ModalHeader>
+<ModalBody>
+    @((MarkupString)Markdig.Markdown.ToHtml(ModalBody, markdownPipeline))
+</ModalBody>
+<ModalFooter>
+    <Button Color="Color.Secondary" Clicked="Confirm">Cerrar</Button>
+</ModalFooter>
+
+@code {
+
+    [Inject] public IModalService ModalService { get; set; }
+
+    [Parameter] public string ModalTitle { get; set; }
+    [Parameter] public string ModalBody { get; set; }
+    MarkdownPipeline? markdownPipeline;
+
+    private async Task Confirm()
+    {
+        await ModalService.Hide();
+    }
+    protected async override Task OnInitializedAsync()
+    {
+        markdownPipeline = new MarkdownPipelineBuilder()
+                                .UseAdvancedExtensions()
+                                .UseCustomMarkdownExtension()
+                                .Build();
+    }
+
+}
