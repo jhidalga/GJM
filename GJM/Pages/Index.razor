@@ -45,13 +45,13 @@
     </Pagination>
     <CardDeck>
         <Row>
-            @foreach(var post in posts)
+            @foreach (var post in posts)
             {
-                <Column ColumnSize="ColumnSize.Is4.IsAuto">
+                <Column ColumnSize="ColumnSize.Is4.OnDesktop.Is6.OnTablet.Is12.OnMobile">
                     <Card>
                         @{
                             string url = GetHeaderUrl(post);
-                         }
+                        }
                         <CardImage Source="@url" Alt="@post.Tittle"></CardImage>
                         <CardBody>
                             <CardTitle Size="5">@post.Tittle</CardTitle>
@@ -73,6 +73,7 @@
             }
         </Row>
     </CardDeck>
+
     <Pagination>
         <PaginationItem Disabled="@IsPageNavigationDisabled(PREVIOUS)" @onclick="Previous">
             <PaginationLink>
