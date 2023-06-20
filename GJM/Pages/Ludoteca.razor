@@ -1,5 +1,7 @@
 ﻿@page "/ludoteca"
 @using GJM.Data;
+@using GJM.Pages.Games;
+@using GJM.Services;
 @using Microsoft.EntityFrameworkCore;
 @inject IDbContextFactory<ApplicationDbContext> dbContextFactory
 
@@ -32,10 +34,21 @@
                         <CardTitle Size="5">@game.Name</CardTitle>
                         <CardSubtitle>Categoria: @game.Category.Name</CardSubtitle>
                         <CardText>@(game.IsRented ? "Alquilado" : game.IsReserved ? "Reservado" : "Disponible")</CardText>
-                        @if (game.IsReserved)
-                        {                  
-                            <CardText>@(game.IsRented ? $"Fecha disponibilidad: {game.ReturnDate?.ToString("MM/dd/yyyy")}" : string.Empty)</CardText>
-                        }
+                        <AuthorizeView>
+                            <Authorized>
+                            @if (game.IsRented)
+                            {                  
+                                <CardText>@(game.IsRented ? $"Fecha disponibilidad: {game.ReturnDate?.ToString("MM/dd/yyyy")}" : string.Empty)</CardText>
+                            }
+                            @if (!game.IsReserved)
+                            {
+                                <Button Color="Color.Secondary" Clicked="@(()=> ShowModalReserveGame(game.Id))" class="flex-fill mr-2">Reservar</Button>
+                            }
+                            </Authorized>
+                            <NotAuthorized>
+                                    <CardText>Si quieres reservar o ver más información acerca de la disponibilidad deberás registrarte</CardText>
+                            </NotAuthorized>
+                        </AuthorizeView>
                     </CardBody>
                 </Card>
             </Column>
@@ -69,6 +82,7 @@
     </Pagination>
 }
 
+@implements IDisposable
 
 @code {
     private const string PREVIOUS = "Previous";
@@ -77,6 +91,9 @@
     private List<Game> games = new List<Game>();
     private int currentPage = 1;
     private int totalPages = 0;
+
+    [Inject] public IModalService ModalService { get; set; }
+    [Inject] public EventService EventService { get; set; }
 
     private async Task SearchGames()
     {
@@ -135,6 +152,45 @@
     {
         currentPage = int.Parse(page);
         await SearchGames();
+    }
+
+    private Task ShowModalReserveGame(int idGame = 0)
+    {
+        return ModalService.Show<ModalReserveGame>(parameters =>
+        {
+            parameters.Add(x => x.IdGame, idGame);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false, Size = ModalSize.Large });
+
+    }
+
+    private async void UpdateGames()
+    {
+        await InvokeAsync(async () =>
+        {
+            await ShowModal("Info", "Has reservado el Juego, pasate a recorgerlo en la asociación");
+            await SearchGames();
+            StateHasChanged();
+        });
+    }
+
+    private Task ShowModal(string title, string message)
+    {
+        return ModalService.Show<GenericModal>(parameters =>
+        {
+            parameters.Add(x => x.ModalTitle, title);
+            parameters.Add(x => x.ModalBody, message);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false });
+    }
+
+    protected override void OnInitialized()
+    {
+        EventService.OnGameReserve += UpdateGames;
+    }
+    public void Dispose()
+    {
+        EventService.OnGameReserve -= UpdateGames;
     }
 
 }

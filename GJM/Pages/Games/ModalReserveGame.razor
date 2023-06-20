@@ -1,0 +1,87 @@
+﻿@using GJM.Data;
+@using GJM.Services;
+@using Microsoft.EntityFrameworkCore;
+@using System.Security.Claims;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDbContextFactory<ApplicationDbContext> dbContextFactory
+
+<ModalHeader>
+    <ModalTitle>Reserva de Juego</ModalTitle>
+    <Button Color="Color.Secondary" Clicked="@HideModal">X</Button>
+</ModalHeader>
+<ModalBody>
+    @if (game != null)
+    {
+        <p>Nombre del juego: @game.Name</p>
+        <p>Categoría: @game.Category.Name</p> <!-- Asegúrate de que "Category" y "Name" sean las propiedades correctas -->
+        <img src="@game.Image" alt="@game.Name" /> <!-- Asegúrate de que "ImageUrl" sea la propiedad correcta -->
+    }
+</ModalBody>
+<ModalFooter>
+    <Button Color="Color.Secondary" Clicked="@HideModal">Close</Button>
+    <Button Color="Color.Danger" Clicked="@(async ()=> await ReserveGame())">Reservar</Button>
+</ModalFooter>
+
+@code {
+
+    [Inject] public IModalService ModalService { get; set; }
+    [Inject] public EventService EventService { get; set; }
+
+    [Parameter] public int IdGame { get; set; } = 0;
+    private Game? game;
+    private string? user;
+
+    private async Task HideModal()
+    {
+        await ModalService.Hide();
+    }
+    private async Task ReserveGame()
+    {
+        using (var dbContext = dbContextFactory.CreateDbContext())
+        {
+            // Asegúrate de que el juego existe
+            var gameToReserve = await dbContext.Games.FirstOrDefaultAsync(p => p.Id == IdGame);
+            if (gameToReserve == null || string.IsNullOrEmpty(user))
+            {
+
+                await ShowModal("Error", "Ocurrió un error, si persiste contacte con el administrador");
+                return;
+            }
+            User usuario = dbContext.Users.FirstOrDefault(u => u.Id.Equals(user));
+            // Marca el juego como reservado
+            gameToReserve.IsReserved = true;
+            gameToReserve.User = usuario;
+
+            // Guarda los cambios en la base de datos
+            await dbContext.SaveChangesAsync();
+        }
+
+        // Cierra el modal
+        await ModalService.Hide();
+        EventService.ReserveGame();
+    }
+
+    private Task ShowModal(string title, string message)
+    {
+        return ModalService.Show<GenericModal>(parameters =>
+        {
+            parameters.Add(x => x.ModalTitle, title);
+            parameters.Add(x => x.ModalBody, message);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false });
+    }
+    protected async override Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (IdGame > 0)
+        {
+            using (var dbContext = dbContextFactory.CreateDbContext())
+            {
+                game = await dbContext.Games.Include(g => g.Category).AsNoTracking().FirstOrDefaultAsync(p => p.Id == IdGame);
+            }
+        }
+    }
+
+}
