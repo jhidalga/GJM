@@ -30,9 +30,12 @@
                     <CardImage Source="@game.Image" Alt="@game.Name"></CardImage>
                     <CardBody>
                         <CardTitle Size="5">@game.Name</CardTitle>
-                        <CardSubtitle>Categoria: @game.Category</CardSubtitle>
-                        <CardText>@(game.IsRented ? "Alquilado" : "Disponible")</CardText>
-                        <CardText>@(game.IsRented ? $"Fecha disponibilidad: {game.ReturnDate?.ToString("MM/dd/yyyy")}" : string.Empty)</CardText>
+                        <CardSubtitle>Categoria: @game.Category.Name</CardSubtitle>
+                        <CardText>@(game.IsRented ? "Alquilado" : game.IsReserved ? "Reservado" : "Disponible")</CardText>
+                        @if (game.IsReserved)
+                        {                  
+                            <CardText>@(game.IsRented ? $"Fecha disponibilidad: {game.ReturnDate?.ToString("MM/dd/yyyy")}" : string.Empty)</CardText>
+                        }
                     </CardBody>
                 </Card>
             </Column>
@@ -80,8 +83,9 @@
         using (var dbContext = dbContextFactory.CreateDbContext())
         {
             var query = dbContext.Games
-                .Where(g => g.Name.Contains(searchTerm) || g.Category.Contains(searchTerm))
-                .Include(g => g.User);
+                .Where(g => g.Name.Contains(searchTerm) || g.Category.Name.Contains(searchTerm)) // Update here
+                .Include(g => g.User)
+            .Include(g => g.Category);
 
             // Count total items for pagination
             var totalItems = await query.CountAsync();

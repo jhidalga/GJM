@@ -7,6 +7,7 @@ namespace GJM.Data
     {
         public DbSet<Game> Games { get; set; }
         public DbSet<Post> Posts { get; set; }
+        public DbSet<Category> Categories { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)

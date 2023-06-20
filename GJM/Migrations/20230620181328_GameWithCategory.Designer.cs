@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace GJM.Data.Migrations
+namespace GJM.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20230531181142_ModPost")]
-    partial class ModPost
+    [Migration("20230620181328_GameWithCategory")]
+    partial class GameWithCategory
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -24,6 +24,23 @@ namespace GJM.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
 
+            modelBuilder.Entity("GJM.Data.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Categories");
+                });
+
             modelBuilder.Entity("GJM.Data.Game", b =>
                 {
                     b.Property<int>("Id")
@@ -32,15 +49,17 @@ namespace GJM.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Image")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsRented")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsReserved")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
@@ -58,6 +77,8 @@ namespace GJM.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("Games");
@@ -72,6 +93,10 @@ namespace GJM.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HeadImage")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -298,9 +323,17 @@ namespace GJM.Data.Migrations
 
             modelBuilder.Entity("GJM.Data.Game", b =>
                 {
+                    b.HasOne("GJM.Data.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("GJM.Data.User", "User")
                         .WithMany("Games")
                         .HasForeignKey("UserId");
+
+                    b.Navigation("Category");
 
                     b.Navigation("User");
                 });
