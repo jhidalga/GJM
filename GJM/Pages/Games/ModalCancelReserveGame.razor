@@ -1,0 +1,69 @@
+﻿@using GJM.Data;
+@using GJM.Services;
+@using Microsoft.EntityFrameworkCore;
+@inject IDbContextFactory<ApplicationDbContext> dbContextFactory
+<ModalHeader>
+    <ModalTitle>Cancelar Reserva de Juego</ModalTitle>
+    <Button Color="Color.Secondary" Clicked="@HideModal">X</Button>
+</ModalHeader>
+<ModalBody>
+
+    <Alert Color="Color.Danger" Visible>
+        <AlertMessage>Alerta: </AlertMessage>
+        <AlertDescription>¿Seguro que quieres cancelar la reserva?</AlertDescription>
+    </Alert>
+
+</ModalBody>
+<ModalFooter>
+    <Button Color="Color.Secondary" Clicked="@HideModal">Close</Button>
+    <Button Color="Color.Danger" Clicked="@(async ()=> await CancelReserveGame())">Cancelar Reserva</Button>
+
+</ModalFooter>
+@code {
+
+    [Inject] public IModalService ModalService { get; set; }
+    [Inject] public EventService EventService { get; set; }
+    [Parameter] public int IdGame { get; set; } = 0;
+    [Parameter] public string IdUser { get; set; } = string.Empty;
+
+    private async Task HideModal()
+    {
+        await ModalService.Hide();
+    }
+    private async Task CancelReserveGame()
+    {
+        using (var dbContext = dbContextFactory.CreateDbContext())
+        {
+            // Asegúrate de que el juego existe
+            var gameToReserve = await dbContext.Games.FirstOrDefaultAsync(p => p.Id == IdGame);
+            User usuario = dbContext.Users.FirstOrDefault(u => u.Id.Equals(IdUser));
+            if (gameToReserve == null || usuario == null)
+            {
+
+                await ShowModal("Error", "Ocurrió un error, si persiste contacte con el administrador");
+                return;
+            }
+            
+            // Marca el juego como reservado
+            gameToReserve.IsReserved = false;
+            gameToReserve.User = null;
+
+            // Guarda los cambios en la base de datos
+            await dbContext.SaveChangesAsync();
+        }
+
+        // Cierra el modal
+        await ModalService.Hide();
+        EventService.ReserveGame();
+    }
+    private Task ShowModal(string title, string message)
+    {
+        return ModalService.Show<GenericModal>(parameters =>
+        {
+            parameters.Add(x => x.ModalTitle, title);
+            parameters.Add(x => x.ModalBody, message);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false });
+    }
+
+}

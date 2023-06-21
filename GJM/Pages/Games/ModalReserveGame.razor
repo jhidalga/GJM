@@ -10,16 +10,26 @@
     <Button Color="Color.Secondary" Clicked="@HideModal">X</Button>
 </ModalHeader>
 <ModalBody>
-    @if (game != null)
+    @if (game != null && userGames < 2)
     {
         <p>Nombre del juego: @game.Name</p>
         <p>Categoría: @game.Category.Name</p> <!-- Asegúrate de que "Category" y "Name" sean las propiedades correctas -->
         <img src="@game.Image" alt="@game.Name" /> <!-- Asegúrate de que "ImageUrl" sea la propiedad correcta -->
     }
+    else
+    {
+        <Alert Color="Color.Secondary" Visible>
+            <AlertMessage>Info: </AlertMessage>
+            <AlertDescription>Vaya, parece que no puedes reservar más juegos, ponte en contacto con la asociación o cancela una de tus reservas</AlertDescription>
+        </Alert>
+    }
 </ModalBody>
 <ModalFooter>
     <Button Color="Color.Secondary" Clicked="@HideModal">Close</Button>
-    <Button Color="Color.Danger" Clicked="@(async ()=> await ReserveGame())">Reservar</Button>
+    @if (game != null && userGames < 2)
+    {
+        <Button Color="Color.Danger" Clicked="@(async ()=> await ReserveGame())">Reservar</Button>
+    }
 </ModalFooter>
 
 @code {
@@ -30,6 +40,7 @@
     [Parameter] public int IdGame { get; set; } = 0;
     private Game? game;
     private string? user;
+    private int userGames = 0;
 
     private async Task HideModal()
     {
@@ -80,6 +91,7 @@
             using (var dbContext = dbContextFactory.CreateDbContext())
             {
                 game = await dbContext.Games.Include(g => g.Category).AsNoTracking().FirstOrDefaultAsync(p => p.Id == IdGame);
+                userGames = await dbContext.Games.Where(g => g.User.Id.Equals(user)).CountAsync();
             }
         }
     }

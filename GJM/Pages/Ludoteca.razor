@@ -3,6 +3,8 @@
 @using GJM.Pages.Games;
 @using GJM.Services;
 @using Microsoft.EntityFrameworkCore;
+@using System.Security.Claims;
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IDbContextFactory<ApplicationDbContext> dbContextFactory
 
 <Container>
@@ -12,14 +14,24 @@
         </Column>
     </Row>
     <Row>
-        <Column ColumnSize="ColumnSize.Is6.OnDesktop.Is8.OnTablet.Is12.OnMobile">
-            <TextEdit @bind-Text="searchTerm" Placeholder="Buscar por nombre o categoria" />
+        <Column ColumnSize="ColumnSize.Is3.OnDesktop.Is8.OnTablet.Is12.OnMobile">
+            <TextEdit @bind-Text="searchTerm" Placeholder="Buscar por nombre" />
         </Column>
-        <Column ColumnSize="ColumnSize.Is6.OnDesktop.Is4.OnTablet.Is12.OnMobile">
+        <Column ColumnSize="ColumnSize.Is3.OnDesktop.Is4.OnTablet.Is12.OnMobile">
+            <SelectList TItem="Category"
+                        TValue="int"
+                        Data="@categories"
+                        TextField="@((item)=>item.Name)"
+                        ValueField="@((item)=>item.Id)"
+                        @bind-SelectedValue="@selectedCategory"
+                        DefaultItemText="Selecciona una categoria" />
+        </Column>
+        <Column ColumnSize="ColumnSize.Is3.OnDesktop.Is4.OnTablet.Is12.OnMobile">
             <Button Color="Color.Primary" Clicked="SearchGames">Buscar</Button>
         </Column>
     </Row>
 </Container>
+
 
 <Divider />
 
@@ -43,6 +55,10 @@
                             @if (!game.IsReserved)
                             {
                                 <Button Color="Color.Secondary" Clicked="@(()=> ShowModalReserveGame(game.Id))" class="flex-fill mr-2">Reservar</Button>
+                            }
+                            @if (game.IsReserved && game.User.Id.Equals(user))
+                            {
+                                    <Button Color="Color.Danger" Clicked="@(()=> ShowModalCancelReserveGame(game.Id))" class="flex-fill mr-2">Cancelar Reserva</Button>
                             }
                             </Authorized>
                             <NotAuthorized>
@@ -81,6 +97,13 @@
         </PaginationItem>
     </Pagination>
 }
+else
+{
+    <Alert Color="Color.Success" Visible>
+        <AlertMessage>Realiza una busqueda</AlertMessage>
+        <AlertDescription>Introduce un nombre o categoria para empezar a ver nuestros juegos</AlertDescription>
+    </Alert>
+}
 
 @implements IDisposable
 
@@ -89,8 +112,13 @@
     private const string NEXT = "Next";
     private string searchTerm = string.Empty;
     private List<Game> games = new List<Game>();
+    private IEnumerable<Category> categories = new List<Category>();
+    private int selectedCategory = 0;
     private int currentPage = 1;
     private int totalPages = 0;
+    private int userGames = 0;
+    private string user = string.Empty;
+    private bool isCancel = false;
 
     [Inject] public IModalService ModalService { get; set; }
     [Inject] public EventService EventService { get; set; }
@@ -99,10 +127,14 @@
     {
         using (var dbContext = dbContextFactory.CreateDbContext())
         {
+            if (selectedCategory <=0)
+            {
+                selectedCategory = 1;
+            }
             var query = dbContext.Games
-                .Where(g => g.Name.Contains(searchTerm) || g.Category.Name.Contains(searchTerm)) // Update here
+                .Where(g => g.Name.Contains(searchTerm) && g.Category.Id == selectedCategory)
                 .Include(g => g.User)
-            .Include(g => g.Category);
+                .Include(g => g.Category);
 
             // Count total items for pagination
             var totalItems = await query.CountAsync();
@@ -164,12 +196,25 @@
 
     }
 
+    private Task ShowModalCancelReserveGame(int idGame = 0)
+    {
+        isCancel = true;
+        return ModalService.Show<ModalCancelReserveGame>(parameters =>
+        {
+            parameters.Add(x => x.IdGame, idGame);
+            parameters.Add(x => x.IdUser, user);
+        },
+        new ModalInstanceOptions() { UseModalStructure = false, Size = ModalSize.Large });
+
+    }
+
     private async void UpdateGames()
     {
         await InvokeAsync(async () =>
         {
-            await ShowModal("Info", "Has reservado el Juego, pasate a recorgerlo en la asociación");
+            await ShowModal("Info", isCancel ? "Has cancelado tu reserva":"Has reservado el Juego, pasate a recorgerlo en la asociación");
             await SearchGames();
+            isCancel = false;
             StateHasChanged();
         });
     }
@@ -187,6 +232,16 @@
     protected override void OnInitialized()
     {
         EventService.OnGameReserve += UpdateGames;
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        using (var dbContext = dbContextFactory.CreateDbContext())
+        {
+            categories = await dbContext.Categories.ToListAsync();
+        }
     }
     public void Dispose()
     {
