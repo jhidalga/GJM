@@ -4,6 +4,7 @@
     {
         public event Action OnPostUpdated;
         public event Action OnPostDeleted;
+        public event Action OnGameReserve;
 
         public void PostUpdated()
         {
@@ -13,6 +14,11 @@
         public void PostDeleted() 
         {
             OnPostDeleted?.Invoke();
+        }
+
+        public void ReserveGame() 
+        {
+            OnGameReserve?.Invoke();
         }
     }
 
