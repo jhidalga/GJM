@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI;
 using Microsoft.EntityFrameworkCore;
+using Syncfusion.Blazor;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +34,7 @@ builder.Services.AddDefaultIdentity<User>(options =>
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<User>>();
+//Añadimos Blazorise y su licencia
 builder.Services
     .AddBlazorise(options =>
     {
@@ -41,11 +43,24 @@ builder.Services
     })
     .AddBootstrapProviders()
     .AddFontAwesomeIcons();
+//Añadimos Syncfusion
+builder.Services.AddSyncfusionBlazor();
+//Añadimos el resto de servicios necesarios para el proyecto
 builder.Services.AddScoped<ModalService>();
 builder.Services.AddSingleton<EventService>();
 builder.Services.AddSingleton<WeatherForecastService>();
 
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy("Open",
+//        builder => builder.AllowAnyOrigin()
+//        .AllowAnyMethod()
+//        .AllowAnyHeader());
+//});
+
 var app = builder.Build();
+//Añadimos la licencia de Syncfusion
+Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense("MjUwMzE3NEAzMjMyMmUzMDJlMzBGa092UjNPSERaano1RllEd1FWZ1AxUldtOWVob1dCVU8xcnR4aGZ6ZGNzPQ==");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -64,6 +79,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+//app.UseCors("Open");
 
 app.UseAuthentication();
 app.UseAuthorization();

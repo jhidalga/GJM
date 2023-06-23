@@ -1,0 +1,60 @@
+﻿@page "/printAndPlay"
+@using GJM.Data
+@using Syncfusion.Blazor.PdfViewer;
+
+<PageTitle>Print & Play</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <SfPdfViewerServer ToolbarSettings="@ToolbarSettings" DocumentPath="@DocumentPath" Height="500px" Width="1060px"></SfPdfViewerServer>
+    </Authorized>
+    <NotAuthorized>
+        <Alert Color="Color.Info" Visible>
+            <AlertMessage>Info: </AlertMessage>
+            <AlertDescription>Lo sentimos pere debes estar registrado para poder acceder</AlertDescription>
+        </Alert>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+
+    private string DocumentPath { get; set; }
+    private string TempFilePath { get; set; }
+    public PdfViewerToolbarSettings ToolbarSettings = new PdfViewerToolbarSettings()
+    {
+        ToolbarItems = new List<ToolbarItem>()
+        {
+            ToolbarItem.PageNavigationTool,
+            ToolbarItem.MagnificationTool,
+            ToolbarItem.SelectionTool,
+            ToolbarItem.PanTool,
+            ToolbarItem.SearchOption,
+            ToolbarItem.PrintOption,
+            ToolbarItem.DownloadOption
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        string Url = "https://storage.googleapis.com/fotos-marca-agua/Programacion2bachillerato.pdf";
+        HttpClient webClient = new HttpClient();
+        byte[] byteArray = await webClient.GetByteArrayAsync(Url);
+
+        // Guarda el PDF como un archivo temporal
+        TempFilePath = Path.GetTempFileName();
+        await File.WriteAllBytesAsync(TempFilePath, byteArray);
+
+        // Usa la ruta del archivo temporal como DocumentPath
+        DocumentPath = TempFilePath;
+    }
+
+    // Puedes llamar a este método después de que el archivo se haya cargado en el visor de PDF
+    private void DeleteTempFile()
+    {
+        if (File.Exists(TempFilePath))
+        {
+            File.Delete(TempFilePath);
+        }
+    }
+}
