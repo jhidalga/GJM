@@ -1,0 +1,75 @@
+﻿@using GJM.Data
+@using Microsoft.EntityFrameworkCore;
+@using Syncfusion.Blazor.PdfViewer;
+@inject IDbContextFactory<ApplicationDbContext> dbContextFactory
+
+<ModalHeader>
+    <ModalTitle>Visor Print&Play: <a href="@pdfUrl" target="_blank">Descarga el juego aquí</a></ModalTitle>
+    <Button Color="Color.Secondary" Clicked="@HideModal">X</Button>
+</ModalHeader>
+<ModalBody>
+<SfPdfViewerServer ToolbarSettings="@ToolbarSettings" DocumentPath="@DocumentPath"></SfPdfViewerServer>
+</ModalBody>
+<ModalFooter>
+    <Button Color="Color.Secondary" Clicked="@HideModal">Close</Button>
+</ModalFooter>
+
+@code {
+
+    private string DocumentPath { get; set; }
+    private string TempFilePath { get; set; }
+    private string pdfUrl = string.Empty;
+    public PdfViewerToolbarSettings ToolbarSettings = new PdfViewerToolbarSettings()
+    {
+        ToolbarItems = new List<ToolbarItem>()
+        {
+            ToolbarItem.PageNavigationTool,
+            ToolbarItem.MagnificationTool,
+            ToolbarItem.SelectionTool,
+            ToolbarItem.PanTool,
+            ToolbarItem.SearchOption,
+            ToolbarItem.PrintOption
+        }
+    };
+
+    [Inject] public IModalService ModalService { get; set; }
+    [Parameter] public int IdPrintAndPlay { get; set; } = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdPrintAndPlay > 0)
+        {
+            using (var dbContext = dbContextFactory.CreateDbContext())
+            {
+                PrintAndPlay? printAndPlay = await dbContext.PrintAndPlays.AsNoTracking().FirstOrDefaultAsync(p => p.Id == IdPrintAndPlay);
+
+                string Url = printAndPlay.Url;
+                pdfUrl = printAndPlay.Url;
+                HttpClient webClient = new HttpClient();
+                byte[] byteArray = await webClient.GetByteArrayAsync(Url);
+
+                // Guarda el PDF como un archivo temporal
+                TempFilePath = Path.GetTempFileName();
+                await File.WriteAllBytesAsync(TempFilePath, byteArray);
+
+                // Usa la ruta del archivo temporal como DocumentPath
+                DocumentPath = TempFilePath;
+            }
+        }
+    }
+    // Borra el archivo temporal
+    private void DeleteTempFile()
+    {
+        if (File.Exists(TempFilePath))
+        {
+            File.Delete(TempFilePath);
+        }
+    }
+    private async Task HideModal()
+    {
+        IdPrintAndPlay = 0;
+        DeleteTempFile();
+        await ModalService.Hide();
+    }
+
+}
