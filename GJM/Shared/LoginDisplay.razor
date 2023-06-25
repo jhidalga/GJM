@@ -5,7 +5,9 @@
             <form method="post" action="Identity/Account/LogOut">
                 <button type="submit" class="btn btn-link">Log out</button>
             </form>
-            <a href="https://docs.microsoft.com/aspnet/" target="_blank" class="nav-link">About</a>
+            <NavLink class="nav-link" href="about">
+                <span aria-hidden="true"></span> About
+            </NavLink>
         </div>
     </Authorized>
     <NotAuthorized>
@@ -17,7 +19,9 @@
                 <a href="Identity/Account/Login" class="nav-link">Log in</a>
             </div>
             <div>
-                <a href="https://docs.microsoft.com/aspnet/" target="_blank" class="nav-link">About</a>
+                <NavLink class="nav-link" href="about">
+                    <span aria-hidden="true"></span> About
+                </NavLink>
             </div>
         </div>
     </NotAuthorized>
