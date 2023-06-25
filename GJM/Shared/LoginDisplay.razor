@@ -1,12 +1,24 @@
 ﻿<AuthorizeView>
     <Authorized>
-        <a href="Identity/Account/Manage">Hello, @context.User.Identity?.Name!</a>
-        <form method="post" action="Identity/Account/LogOut">
-            <button type="submit" class="nav-link btn btn-link">Log out</button>
-        </form>
+        <div class="nav-item d-flex justify-content-between">
+            <a href="Identity/Account/Manage" class="nav-link">Perfil</a>
+            <form method="post" action="Identity/Account/LogOut">
+                <button type="submit" class="btn btn-link">Log out</button>
+            </form>
+            <a href="https://docs.microsoft.com/aspnet/" target="_blank" class="nav-link">About</a>
+        </div>
     </Authorized>
     <NotAuthorized>
-        <a href="Identity/Account/Register">Register</a>
-        <a href="Identity/Account/Login">Log in</a>
+        <div class="nav-item d-flex justify-content-between">
+            <div>
+                <a href="Identity/Account/Register" class="nav-link">Register</a>
+            </div>
+            <div>
+                <a href="Identity/Account/Login" class="nav-link">Log in</a>
+            </div>
+            <div>
+                <a href="https://docs.microsoft.com/aspnet/" target="_blank" class="nav-link">About</a>
+            </div>
+        </div>
     </NotAuthorized>
 </AuthorizeView>
